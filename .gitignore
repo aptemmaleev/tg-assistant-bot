@@ -1,0 +1,6 @@
+# Files
+*.code-workspace
+data/config.json
+
+# Folders
+__pycache__
