@@ -15,6 +15,10 @@ config_dict = {
         "database": "postgres",
         "user": "postgres",
         "password": ""
+    },
+    "onlinegdb": {
+        "email": "",
+        "password": ""
     }
 }
 
