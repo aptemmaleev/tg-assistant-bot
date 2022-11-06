@@ -39,8 +39,8 @@ class PostgresDatabase:
                                           password=cls.__password,
                                           host=cls.__host,
                                           port=cls.__port,
-                                          database=cls.__database)
-            print('Connection to Postgres database')
+                                          database=cls.__database,
+                                          )
         except psycopg2.Error as e:
             print(f'Cannot connect to Database!\n' + str(e))
             raise SystemExit('Cannot connect to Database!')
@@ -49,19 +49,22 @@ class PostgresDatabase:
     # Execute SQL query
     @classmethod
     def execute_query(cls, query):
-        if (not cls.test_query()):
-            sleep(2)
-            cls.reload_connection()
+        cls.reload_connection()
         try:
             cursor = cls.__connection.cursor()
             cursor.execute(query)
             cls.__connection.commit()
-            return cursor.fetchall()
         except psycopg2.ProgrammingError as e:
+            print(f'ProgrammingError in execute_query occured, {e}')
             pass
         except psycopg2.Error as e:
             print(f'Exception in execute_query occured, {e}')
             raise(e)
+        
+        try:
+            return cursor.fetchall()
+        except Exception as e:
+            pass
     
     # Test query
     @classmethod
@@ -82,7 +85,7 @@ class PostgresDatabase:
         Args:
             user_id (int): telegram user id
         """
-        PostgresDatabase.execute_query(f'insert into users (id) values ({user_id})')
+        PostgresDatabase.execute_query(f'insert into users ("id") values ({user_id})')
         return cls.get_user(user_id)
 
     @classmethod
@@ -94,8 +97,63 @@ class PostgresDatabase:
         Return:
             tuple(id: int, first_access: datetime, is_teacher: bool)
         """ 
-        user = PostgresDatabase.execute_query(f'select * from users where id={user_id}')
-        if (len(user) == 0):
+        data = PostgresDatabase.execute_query(f'select * from users where "id"={user_id}')
+        if(len(data) == 0):
             return None
         else:
-            return user[0]
+            return data[0]
+        
+    @classmethod
+    def add_verification_request(cls, user_id: int, code: int):
+        """Add verifiaction request
+        
+        Args:
+            user_id (int): telegram user id
+            code (int): verification code
+        """
+        PostgresDatabase.execute_query(f'insert into verification ("user", "code") values ({user_id}, {code})')
+        
+    @classmethod
+    def get_verification_request_by_code(cls, code: int):
+        """Get verification request by code
+
+        Args:
+            code (int): verification code
+        """
+        data = PostgresDatabase.execute_query(f'select * from verification where "code"={code}')
+        if(len(data) == 0):
+            return None
+        else:
+            return data[0]
+        
+    @classmethod
+    def get_verification_request_by_id(cls, user_id: int):
+        """Get verification request by code
+
+        Args:
+            code (int): telegram user id
+        """
+        data = PostgresDatabase.execute_query(f'select * from verification where "user"={user_id}')
+        if(len(data) == 0):
+            return None
+        else:
+            return data[0]
+        
+    @classmethod
+    def set_teacher(cls, user_id: int):
+        """Set user's teacher field to True
+
+        Args:
+            user_id (int): telegram user id
+        """
+        PostgresDatabase.execute_query(f'update users set is_teacher=true where id = {user_id}')
+        return cls.get_user(user_id)
+    
+    @classmethod
+    def delete_verification_request(cls, user_id: int):
+        """Delete user verification request
+
+        Args:
+            user_id (int): telegram user id
+        """
+        PostgresDatabase.execute_query(f'delete from verification where "user" = {user_id}')
