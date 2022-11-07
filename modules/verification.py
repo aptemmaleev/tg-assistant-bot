@@ -2,9 +2,8 @@ from random import randint
 from config import config
 from aiogram import Bot, Dispatcher, types
 
-from .utils.db import PostgresDatabase
-from .utils.buttons import start_verification_keyboard
-from filters.role import OwnerFilter
+from utils.db import PostgresDatabase
+from modules.elements.keyboards import start_verification_keyboard
 
 class VerificationModule():
     def __init__(self, dp: Dispatcher, bot: Bot):
@@ -12,9 +11,8 @@ class VerificationModule():
         self.bot = bot
         
         dp.register_message_handler(self.accept_verification_request, is_owner=True, commands=["accept"])
-        dp.register_message_handler(self.welcome_message, commands=["start", "help"])
+        dp.register_message_handler(self.welcome_message, commands=["start"])
         dp.register_callback_query_handler(self.process_start_verification_button, lambda c: c.data == 'start_verification_button')
-        
         
     # Start command handler
     async def welcome_message(self, message: types.Message):
@@ -62,7 +60,8 @@ class VerificationModule():
                                         f'Ранее вы уже оставили заявку №`{request[1]}`\n' +
                                         'Сообщите уникальный код @aptemm, если вы этого еще не сделали\\.',
                                         parse_mode="MarkdownV2")
-        
+    
+    # Request accept command handler
     async def accept_verification_request(self, message: types.Message):
         args = message.get_args()
         # Args is empty
@@ -85,7 +84,5 @@ class VerificationModule():
         await self.bot.send_message(request[0], 'Ваша заявка рассмотрена! Вы получили доступ к основным функциям бота /help')
         await message.answer('Done')
         
-        
-    
 def setup(dp: Dispatcher, bot):
     VerificationModule(dp, bot)
