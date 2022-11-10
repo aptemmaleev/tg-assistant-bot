@@ -6,8 +6,10 @@ from requests import Session
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 
-onlinegdb_login = ''
-onlinegdb_password = ''
+from config import config
+
+onlinegdb_login = config.onlinegdb.email
+onlinegdb_password = config.onlinegdb.password
 
 class OnlinegdbError(Exception):
     def __init__(self, message):
@@ -20,12 +22,20 @@ class OnlinegdbLoginError(Exception):
         super().__init__(self.message)
 
 class Assignment():    
-    def __init__(self, id, pending, session):
+    def __init__(self, id, active, session, not_submitted_count = 0, pending_count = 0, done_count = 0, name = None):
         self.id: int = id                   # Assignment id
-        self.pending: id = pending          # Pending count
+        self.active = active
+        
+        self.name: str = name
+        
+        self.not_submitted_count: int = not_submitted_count
+        self.pending_count: int = pending_count         
+        self.done_count: int = done_count
+        
         self.session: Session = session     # Onlinegdb Session
         
         self.submissions = list()           # {'name': str, 'id': int, 'done': bool, 'grade': int}
+        self.done = list()
     
     def update_submissions(self):
         response = self.session.get(f'https://www.onlinegdb.com/t/as/{str(self.id)}/sub/evaluate')
@@ -53,8 +63,31 @@ class Assignment():
                                          'id': sub_id, 
                                          'done': done, 
                                          'grade': int(grade[0])})
-        print(self.submissions)
-    
+        
+    def update_done(self):
+        response = self.session.get(f'https://www.onlinegdb.com/t/as/{str(self.id)}/view/submissionsdone')
+        self.done.clear()
+        soup = BeautifulSoup(response.content, features="lxml")
+        table = soup.find('table', attrs={'id':'submission_list'})
+        if (table == None):
+            return
+        # Parse submissions table
+        soup = BeautifulSoup(response.content, features="lxml")
+        table = soup.find('table', attrs={'id':'submission_list'})
+        if (table == None):
+            return
+        rows = table.find_all('tr')
+        # Process rows and columns
+        for row in rows:
+            cols = row.find_all('td')
+            if(len(cols)):
+                sub_id = int(cols[0].find_all(href=True)[0].get('href').split('/')[-1])
+                name = cols[0].text.replace('\n', '')
+                cols = [ele.text.strip() for ele in cols]
+                grade = cols[1].split(' ')
+                done = grade[0] == grade[-1]
+                self.done.append(name)
+        
     def review(self):
         self.update_submissions()
         for submission in self.submissions:
@@ -104,12 +137,60 @@ class AutoOnlinegdb():
                 continue
             evalute_count = pending_for_evalution.text.split(' ')[0].replace('\n', '')
             print(assignment_id, evalute_count)
-            result.append(Assignment(int(assignment_id), evalute_count, self.session))
+            result.append(Assignment(int(assignment_id), True, self.session, pending_count=evalute_count))
         return result
     
-loop = asyncio.new_event_loop()
-
+    def get_assignments(self) -> list:
+        response = self.session.get(url= "https://www.onlinegdb.com/classroom/NTVstWjyz")
+        soup = BeautifulSoup(response.content, features="lxml")
+        assignments = soup.find_all('li', attrs={'class': 'list-group-item col-sm-12'})
+        print(len(assignments))
+        result = list()
+        for assignment in assignments:
+            name = assignment.text.splitlines(False)[1]
+            assignment: Tag = assignment
+            assignment_id = assignment.get_attribute_list('data-id')[0]
+            print(assignment_id)
+            # Get tasks buttons
+            pending_for_evalution = assignment.find('a', attrs={'class': "btn btn-info btn-xs"})
+            not_submitted = assignment.find('button', attrs={'class': "btn btn-warning btn-xs"})
+            submission_done = assignment.find('button', attrs={'class': "btn btn-success btn-xs"})
+            # If buttons dont exist
+            if pending_for_evalution == None:
+                result.append(Assignment(int(assignment_id), False, self.session, name=name))
+                continue
+            # Get text from buttons
+            not_submitted_count = not_submitted.text.split(' ')[0].replace('\n', '')
+            evalute_count = pending_for_evalution.text.split(' ')[0].replace('\n', '')
+            done_count = submission_done.text.split(' ')[0].replace('\n', '')
+            
+            result.append(Assignment(int(assignment_id), 
+                                     False, 
+                                     self.session,
+                                     int(not_submitted_count),
+                                     int(evalute_count),
+                                     int(done_count), 
+                                     name=name))
+        return result
+            
 ao = AutoOnlinegdb(onlinegdb_login, onlinegdb_password)
-assignments = ao.get_assignments_on_evalute()
-for i in assignments:
-    i.review()
+
+assignments = ao.get_assignments()
+print('DOOOONE')
+
+from sheets.sheets import GradesSheet
+import time
+  
+sheet = GradesSheet("1o4oKGu_Lyfgt7I5AmebV4HKxrrB8HEDafxpnw0tFVEY")
+
+onlinegdb_table = sheet.get_onlinegdb_table()
+    
+for assignment in assignments:
+    print(assignment.id)
+    if assignment.done_count > 0:
+        assignment.update_done()
+        if not onlinegdb_table.task_exist(assignment.id):
+            onlinegdb_table.add_task(assignment.id, assignment.name)
+        onlinegdb_table.set_grade(assignment.id, assignment.done)
+        time.sleep(5)
+        
