@@ -2,87 +2,123 @@ from random import randint
 from config import config
 from aiogram import Bot, Dispatcher, types
 
-from utils.db import PostgresDatabase
-from modules.elements.keyboards import start_verification_keyboard
+from .utils.cache import Cache
+
+from .elements.keyboards import start_verification_keyboard
+from filters.permissions import check_role
 
 class VerificationModule():
     def __init__(self, dp: Dispatcher, bot: Bot):
         self.dp = dp
         self.bot = bot
         
-        dp.register_message_handler(self.accept_verification_request, is_owner=True, commands=["accept"])
-        dp.register_message_handler(self.welcome_message, commands=["start"])
-        dp.register_callback_query_handler(self.process_start_verification_button, lambda c: c.data == 'start_verification_button')
+        dp.register_message_handler(self.start_command, commands=["start", "старт", "начало"])
+        dp.register_callback_query_handler(self.start_verification_callback, lambda c: c.data == 'start_verification_button')
         
-    # Start command handler
-    async def welcome_message(self, message: types.Message):
-        # Get user from database
-        db_user = PostgresDatabase.get_user(message.from_id)
-        if (db_user == None):
-            db_user = PostgresDatabase.add_user(message.from_id)
-        # User is teacher or not
-        answer = ""
-        if (db_user[2]):
-            answer += "*Вы уже получили доступ к боту\\!* \n"
+    # Welcome message (/start)
+    async def start_command(self, message: types.Message):
+        # User already have access
+        if (check_role(message, ['teacher', 'admin'])):
+            answer = "*Вы уже получили доступ к боту\\!* \n"
             answer += "Список команд: /help"
             await message.answer(answer, parse_mode="MarkdownV2")
-        else:
-            request = PostgresDatabase.get_verification_request_by_id(message.from_id)
-            if (request == None):
-                answer += f"*Добро пожаловать, {message.from_user.first_name}*\\! \n"
-                answer += "Чтобы начать пользоваться ботом необходимо пройти верификацию\\."
-                await message.answer(answer, parse_mode="MarkdownV2", reply_markup=start_verification_keyboard)
-            else:
-                await self.bot.send_message(message.from_id, 
-                                            f'Ранее вы уже оставили заявку №`{request[1]}`\n' +
-                                            'Сообщите уникальный код @aptemm, если вы этого еще не сделали\\.',
-                                            parse_mode="MarkdownV2")
-    
-    # start_verification_button Query Callback 
-    async def process_start_verification_button(self, callback_query: types.CallbackQuery):
-        db_user = PostgresDatabase.get_user(callback_query.from_user.id)
-        if (db_user[2]):
-            await callback_query.answer('У вас уже есть доступ')
             return
+        
+        # User is rejected
+        elif(check_role(message, 'rejected')):
+            return
+        
+        # Default user
+        user = Cache.get_user(message.from_id)
+        if (user.get_request() == None):
+            answer = f"*Добро пожаловать, {message.from_user.first_name}*\\! \n"
+            answer += "Чтобы начать пользоваться ботом необходимо пройти верификацию\\."
+            await message.answer(answer, parse_mode="MarkdownV2", reply_markup=start_verification_keyboard)
+        else:
+            answer = f'Ранее вы уже оставили заявку №`{user.get_request()}`\n'
+            answer += 'Сообщите уникальный код @aptemm, если вы этого еще не сделали\\.'
+            await self.bot.send_message(message.from_id, answer, parse_mode="MarkdownV2")
+        
+        
+        
+    # # Start command handler
+    # async def welcome_message(self, message: types.Message):
+    #     # User is teacher or not
+    #     if (check_role(message, ['teacher', 'admin'])):
+    #         answer = "*Вы уже получили доступ к боту\\!* \n"
+    #         answer += "Список команд: /help"
+    #         await message.answer(answer, parse_mode="MarkdownV2")
+    #         return
+    #     # Get user from database
+    #     user = Cache.get_user(message.from_id)
+    #     if (user.get_request() == None):
+    #         answer = f"*Добро пожаловать, {message.from_user.first_name}*\\! \n"
+    #         answer += "Чтобы начать пользоваться ботом необходимо пройти верификацию\\."
+    #         await message.answer(answer, parse_mode="MarkdownV2", reply_markup=start_verification_keyboard)
+    #     else:
+    #         await self.bot.send_message(message.from_id, 
+    #                                     f'Ранее вы уже оставили заявку №`{user.get_request()}`\n' +
+    #                                     'Сообщите уникальный код @aptemm, если вы этого еще не сделали\\.',
+    #                                     parse_mode="MarkdownV2")
+    
+    
+    async def start_verification_callback(self, callback_query: types.CallbackQuery):
+        # Answer callback
         await self.bot.answer_callback_query(callback_query.id)
-        request = PostgresDatabase.get_verification_request_by_id(callback_query.from_user.id)
-        if (request == None):
-            await self.bot.send_message(callback_query.from_user.id, 
-                                        'Вам будет выслан уникальный код заявки\\. Сообщите его @aptemm\\.',
-                                        parse_mode="MarkdownV2")
+        
+        # User already have access
+        if (check_role(callback_query, ['teacher', 'admin'])):
+            answer = "*Вы уже получили доступ к боту\\!* \n"
+            answer += "Список команд: /help"
+            await callback_query.message.edit_text(answer = answer, parse_mode="MarkdownV2")
+            return
+        
+        # Only guest
+        if (not check_role(callback_query, 'guest')):
+            answer = "*Недоступно\\!*"
+            await callback_query.message.edit_text(answer = answer, parse_mode="MarkdownV2")
+            return
+
+        # Start verification process
+        user = Cache.get_user(callback_query.from_user.id)
+        if (user.get_request() == None):
+            # first code message
+            answer = 'Вам будет выслан уникальный код заявки\\. Сообщите его @aptemm\\.'
+            await callback_query.message.answer(answer, parse_mode="MarkdownV2")
+            # random code generator
             code = randint(100000, 999999)
-            PostgresDatabase.add_verification_request(callback_query.from_user.id, code)
-            await self.bot.send_message(callback_query.from_user.id, 
-                                        f'Ваш код: `{code}`',
-                                        parse_mode="MarkdownV2")
+            user.add_request(code)
+            # second code message
+            await callback_query.message.answer(f'Ваш код: `{code}`', parse_mode="MarkdownV2")
         else:
-            await self.bot.send_message(callback_query.from_user.id, 
-                                        f'Ранее вы уже оставили заявку №`{request[1]}`\n' +
-                                        'Сообщите уникальный код @aptemm, если вы этого еще не сделали\\.',
-                                        parse_mode="MarkdownV2")
-    
-    # Request accept command handler
-    async def accept_verification_request(self, message: types.Message):
-        args = message.get_args()
-        # Args is empty
-        if (args == ''):
-            await message.answer('Введите номер заявки: `/accept id`', parse_mode="MarkdownV2")
-            return
-        # Args is not digit
-        args = args.split()[0]
-        if not args.isdigit():
-            await message.answer('Введите номер заявки: `/accept id`', parse_mode="MarkdownV2")
-            return
-        # Process
-        code = int(args)
-        request = PostgresDatabase.get_verification_request_by_code(code)
-        if (request == None):
-            await message.answer(f'В базе нет такой заявки `{code}`', parse_mode="MarkdownV2")
-            return
-        PostgresDatabase.delete_verification_request(request[0])
-        PostgresDatabase.set_teacher(request[0])
-        await self.bot.send_message(request[0], 'Ваша заявка рассмотрена! Вы получили доступ к основным функциям бота /help')
-        await message.answer('Done')
+            answer = f'Ранее вы уже оставили заявку №`{user.get_request()}`\n'
+            answer += 'Сообщите уникальный код @aptemm, если вы этого еще не сделали\\.'
+            await callback_query.message.edit_text(answer, parse_mode="MarkdownV2")
+        
+    # # start_verification_button Query Callback 
+    # async def process_start_verification_button(self, callback_query: types.CallbackQuery):
+    #     await self.bot.answer_callback_query(callback_query.id)
+    #     # User already have access
+    #     if (check_role(callback_query, ['teacher', 'admin'])):
+    #         await callback_query.message.edit_text("*Вы уже получили доступ к боту\\!* \n" +
+    #                                                "Список команд: /help", parse_mode="MarkdownV2")
+    #         return
+        
+    #     user = Cache.get_user(callback_query.from_user.id)
+    #     if (user.get_request() == None):
+    #         await self.bot.send_message(callback_query.from_user.id, 
+    #                                     'Вам будет выслан уникальный код заявки\\. Сообщите его @aptemm\\.',
+    #                                     parse_mode="MarkdownV2")
+    #         code = randint(100000, 999999)
+    #         user.add_request(code)
+    #         await self.bot.send_message(callback_query.from_user.id, 
+    #                                     f'Ваш код: `{code}`',
+    #                                     parse_mode="MarkdownV2")
+    #     else:
+    #         await self.bot.send_message(callback_query.from_user.id, 
+    #                                     f'Ранее вы уже оставили заявку №`{user.get_request()}`\n' +
+    #                                     'Сообщите уникальный код @aptemm, если вы этого еще не сделали\\.',
+    #                                     parse_mode="MarkdownV2")
         
 def setup(dp: Dispatcher, bot):
     VerificationModule(dp, bot)

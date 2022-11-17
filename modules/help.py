@@ -2,9 +2,12 @@ from random import randint
 from config import config
 from aiogram import Bot, Dispatcher, types
 
-from utils.user import BotUser
-from utils.db import PostgresDatabase
-from utils.cache import Cache
+from .utils.user import BotUser
+from .utils.db import PostgresDatabase
+from .utils.cache import Cache
+
+from filters.permissions import check_role
+
 
 from modules.elements.keyboards import start_verification_keyboard
 
@@ -13,13 +16,19 @@ class HelpModule():
         self.dp = dp
         self.bot = bot
         
-        dp.register_message_handler(self.help_command, role=["teacher", "admin"], commands=["help", "info", "помощь", "хелп"])
+        dp.register_message_handler(self.help_command, commands=["help", "info", "помощь", "хелп"])
     
+    # Help command
     async def help_command(self, message: types.Message):
-        print(Cache.get_user(message.from_id))
+        # Only if user is admin or teacher
+        if (not check_role(message, ['admin', 'teacher'])):
+            answer = "*Сначала получите доступ к боту\\!* \n"
+            answer += "Выполните команду: /start"
+            await message.answer(answer = answer, parse_mode="MarkdownV2")
+            return
         
-        help_text = ''
-        help_text += '📕*Список комманд:* \n'
+        # Process help command        
+        help_text = '📕*Список комманд:* \n'
         help_text += '📌 /codeforces \\- панель управления CodeForces  \n'
         help_text += '📌 /onlinegdb \\- панель управления OnlineGdb Classroom  \n'
         help_text += '📌 /acmp \\- панель управления Acmp  \n'
