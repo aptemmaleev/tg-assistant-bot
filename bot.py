@@ -4,9 +4,11 @@ import importlib
 from aiogram import Bot, Dispatcher, executor
 
 from config import config
-from utils.db import PostgresDatabase
-from utils.cache import Cache
+from modules.utils.db import PostgresDatabase
+from modules.utils.cache import Cache
 from filters.role import setup_permissions
+
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 # Initialize database
 PostgresDatabase(host=config.database.host,
@@ -20,7 +22,7 @@ Cache()
 
 # Initialize telegram bot
 bot = Bot(token=config.token)
-dp = Dispatcher(bot)
+dp = Dispatcher(bot, storage=MemoryStorage())
 
 # Initialize filters
 setup_permissions(dp)
