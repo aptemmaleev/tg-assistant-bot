@@ -34,6 +34,9 @@ for module in tree:
         path = 'modules.' + module[:-3]
         mod = importlib.import_module(path)
         mod.setup(dp, bot)
+        
+async def on_startup(dp):
+    print('Bot has been succesfully started!')
 
 if __name__ == "__main__":
-    executor.start_polling(dp, skip_updates=True)
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
