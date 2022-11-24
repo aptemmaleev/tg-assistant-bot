@@ -1,1 +1,61 @@
-# assistant_bot
+# Assistant Bot
+## Экономлю ваше время
+
+Телеграмм бот на основе библиотеки aiogram для автоматизации проверок 
+практических работ слушателей курсов Школы::Кода по Python.
+
+- Автоматизация [OnlineGDB Classroom]
+- Парсинг решений с [ACMP]
+- Парсинг решений с [Codeforces] (в планах)
+
+## Техническая часть
+
+Assistant Bot использует ряд проектов с открытым исходным кодом для работы:
+- [aiogram] - Simple and fully asynchronous framework for Telegram Bot API
+- [gspread] - Google Sheets Python API
+- [pdoc] - API Documentation for Python Projects
+- [psycopg2] - PostgreSQL database adapter for the Python programming language
+
+## Установка
+
+Склонируйте репозиторий и настройке файл конфигурации:
+
+```json
+{
+    "token": "telegram_bot_token",
+    "database": {
+        "host": "postgres",
+        "port": "postgres",
+        "database": "postgres",
+        "user": "postgres",
+        "password": "postgres"
+    },
+    "onlinegdb": {
+        "email": "",
+        "password": ""
+    },
+    "owner": 11111
+}
+```
+
+Поместите в папку `\data` сервисный аккаунт гугл `service_account.json`.
+И после запустите бота с помощью команды терминала:
+```sh
+python bot.py
+```
+
+## License
+
+MIT
+
+**Free Software, Hell Yeah!**
+
+[//]: # (These are reference links used in the body of this note and get stripped out when the markdown processor does its job. There is no need to format nicely because it shouldn't be seen. Thanks SO - http://stackoverflow.com/questions/4823468/store-comments-in-markdown-syntax)
+
+   [OnlineGDB Classroom]: <https://www.onlinegdb.com/classroom>
+   [ACMP]: <https://acmp.ru/>
+   [Codeforces]: <https://codeforces.com/>
+   [aiogram]: <https://github.com/aiogram/aiogram>
+   [gspread]: <https://github.com/burnash/gspread>
+   [pdoc]: <https://github.com/mitmproxy/pdoc>
+   [psycopg2]: <https://github.com/psycopg/psycopg2>
