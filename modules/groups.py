@@ -30,16 +30,21 @@ class GroupModule():
         
         self.user_sheets = {}
         
-        dp.register_message_handler(self.groups_command, commands=["groups", "группы"], role=['teacher', 'admin'])
+        # Groups Command Handler
+        dp.register_message_handler(self.groups_command, commands=["groups", "группы", "menu"], role=['teacher', 'admin'])
+        dp.register_message_handler(self.cancel_handler, commands=["стоп", "cancel", "stop"], role=['teacher', 'admin'], state='*')
         
+        # Button Click handler
         dp.register_callback_query_handler(self.on_select_group_button_clicked, lambda c: c.data.startswith("groups_select_"), role=['teacher', 'admin'])
         dp.register_callback_query_handler(self.on_add_group_button_clicked, lambda c: c.data == "groups_add", role=['teacher', 'admin'])
         dp.register_callback_query_handler(self.on_add_google_sheets_button_clicked, lambda c: c.data == "groups_add_sheets", role=['teacher', 'admin'])
-
         dp.register_callback_query_handler(self.on_return_to_groups_clicked, lambda c: c.data == "return_to_groups", role=['teacher', 'admin'])
         
+        # User Input Handler
         dp.register_message_handler(self.on_sheets_url_received, state=NewGroupForm.sheets_url)
         dp.register_message_handler(self.on_sheets_name_received, state=NewGroupForm.name)
+        # dp.register_message_handler(self.cancel_handler, state=NewGroupForm.sheets_url)
+        # dp.register_message_handler(self.cancel_handler, state=NewGroupForm.name)
     
     async def groups_command(self, message: types.Message):
         print('groups_command')
@@ -99,7 +104,8 @@ class GroupModule():
         
     async def on_sheets_url_received(self, message: types.Message, state: FSMContext):
         url = message.text
-        if (url.find('docs.google.com/spreadsheets/d/')):
+        if (url.find('docs.google.com/spreadsheets/d/') != -1):
+            print('Find!')
             url = url.split('/')
             sheets_id = ''
             for i in range(len(url)):
@@ -114,6 +120,8 @@ class GroupModule():
                 await message.answer(answer, parse_mode="MarkdownV2")
             except Exception as e:
                 await message.answer(f'Error: {e}')
+        else:
+            await message.answer(f'Неверная ссылка на журнал, попробуйте еще раз!\n📌 /cancel - отменить создание группы')
     
     async def on_sheets_name_received(self, message: types.Message, state: FSMContext):
         name = message.text
@@ -123,8 +131,9 @@ class GroupModule():
             # user = Cache.update_user(user.id)
             await message.answer(f'Группа {name} успешно добавлена! Список доступных групп: /groups')
             await state.finish()
-            return
-        message.answer('Неправильный формат имени (длина от 3 до 32 символов, английские буквы и пробел)')
+        else:
+            await message.answer(f'Неправильный формат имени (длина от 3 до 32 символов, английские буквы и пробел)\n📌 /cancel - отменить создание группы')
+
     
     async def on_select_group_button_clicked(self, callback_query: types.CallbackQuery):
         print('on_select_group_button_clicked')
@@ -156,7 +165,7 @@ class GroupModule():
         # Cancel state and inform user about it
         await state.finish()
         # And remove keyboard (just in case)
-        await message.reply('Cancelled.', reply_markup=types.ReplyKeyboardRemove())
+        await message.reply('Создание группы отменено!', reply_markup=types.ReplyKeyboardRemove())
     
         
 def setup(dp: Dispatcher, bot):

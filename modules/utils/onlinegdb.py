@@ -6,10 +6,7 @@ from requests import Session
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 
-#from config import config
-
-onlinegdb_login = ''
-onlinegdb_password = ''
+from config import config
 
 class OnlinegdbError(Exception):
     def __init__(self, message):
@@ -36,6 +33,9 @@ class Assignment():
         
         self.submissions = list()           # {'name': str, 'id': int, 'done': bool, 'grade': int}
         self.done = list()
+    
+    def get_active_status(self) -> bool:
+        return (self.not_submitted_count == 0 and self.pending_count == 0 and self.done_count == 0)
     
     def update_submissions(self):
         response = self.session.get(f'https://www.onlinegdb.com/t/as/{str(self.id)}/sub/evaluate')
@@ -88,6 +88,7 @@ class Assignment():
                 grade = cols[1].split(' ')
                 done = grade[0] == grade[-1]
                 self.done.append(name)
+        self.done_count = len(self.done)
         
     def review(self):
         self.update_submissions()
@@ -101,7 +102,8 @@ class AutoOnlinegdb():
     password = None                 # Teacher's account password
     session = None                  # Request Session
         
-    def __init__(self, email, password):
+    def __init__(self, classroom):
+        self.classroom = classroom
         # Initialize session
         software_names = [SoftwareName.CHROME.value]
         operating_systems = [OperatingSystem.WINDOWS.value]   
@@ -109,8 +111,8 @@ class AutoOnlinegdb():
         self.session = Session()
         self.session.headers = {"User-Agent": user_agent_rotator.get_random_user_agent()}
         # Login in account
-        self.email = email
-        self.password = password
+        self.email = config.onlinegdb.email
+        self.password = config.onlinegdb.password
         self.login()
         
     def login(self):
@@ -126,7 +128,7 @@ class AutoOnlinegdb():
             raise OnlinegdbLoginError(f'Cannot login in account {self.email}')
         
     def get_assignments_on_evalute(self) -> list:
-        response = self.session.get(url= "https://www.onlinegdb.com/classroom/NTVstWjyz")
+        response = self.session.get(url= f"https://www.onlinegdb.com/classroom/{self.classroom}")
         soup = BeautifulSoup(response.content, features="lxml")
         assignments = soup.find_all('li', attrs={'class': 'list-group-item col-sm-12'})
         result = list()
@@ -137,21 +139,20 @@ class AutoOnlinegdb():
             if pending_for_evalution == None:
                 continue
             evalute_count = pending_for_evalution.text.split(' ')[0].replace('\n', '')
-            print(assignment_id, evalute_count)
+            # print(assignment_id, evalute_count)
             result.append(Assignment(int(assignment_id), True, self.session, pending_count=evalute_count))
         return result
     
     def get_assignments(self) -> list:
-        response = self.session.get(url= "https://www.onlinegdb.com/classroom/NTVstWjyz")
+        response = self.session.get(url= f"https://www.onlinegdb.com/classroom/{self.classroom}")
         soup = BeautifulSoup(response.content, features="lxml")
         assignments = soup.find_all('li', attrs={'class': 'list-group-item col-sm-12'})
-        print(len(assignments))
         result = list()
         for assignment in assignments:
             name = assignment.text.splitlines(False)[1]
             assignment: Tag = assignment
             assignment_id = assignment.get_attribute_list('data-id')[0]
-            print(assignment_id)
+            # print(assignment_id)
             # Get tasks buttons
             pending_for_evalution = assignment.find('a', attrs={'class': "btn btn-info btn-xs"})
             not_submitted = assignment.find('button', attrs={'class': "btn btn-warning btn-xs"})
@@ -174,29 +175,29 @@ class AutoOnlinegdb():
                                      name=name))
         return result
             
-ao = AutoOnlinegdb(onlinegdb_login, onlinegdb_password)
+# ao = AutoOnlinegdb(onlinegdb_login, onlinegdb_password)
 
-assigments = ao.get_assignments_on_evalute()
+# assigments = ao.get_assignments_on_evalute()
 
-for task in assigments:
-    task.review()
+# for task in assigments:
+#     task.review()
 
-assignments = ao.get_assignments()
-print('DOOOONE')
+# assignments = ao.get_assignments()
+# print('DOOOONE')
 
-from sheets.sheets import GradesSheet
-import time
+# from sheets.sheets import GradesSheet
+# import time
   
-sheet = GradesSheet("1o4oKGu_Lyfgt7I5AmebV4HKxrrB8HEDafxpnw0tFVEY")
+# sheet = GradesSheet("1XXOskFsamnE0pK3fjQhXkVDmlfbBeNb9Ey23nTxXLlU")
 
-onlinegdb_table = sheet.get_onlinegdb_table()
+# onlinegdb_table = sheet.get_onlinegdb_table()
     
-for assignment in assignments:
-    print(assignment.id)
-    if assignment.done_count > 0:
-        assignment.update_done()
-        if not onlinegdb_table.task_exist(assignment.id):
-            onlinegdb_table.add_task(assignment.id, assignment.name)
-        onlinegdb_table.set_grade(assignment.id, assignment.done)
-        time.sleep(2)
+# for assignment in assignments:
+#     print(assignment.id)
+#     if assignment.done_count > 0:
+#         assignment.update_done()
+#         if not onlinegdb_table.task_exist(assignment.id):
+#             onlinegdb_table.add_task(assignment.id, assignment.name)
+#         onlinegdb_table.set_grade(assignment.id, assignment.done)
+#         time.sleep(2)
         

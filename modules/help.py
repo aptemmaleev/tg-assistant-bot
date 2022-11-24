@@ -1,4 +1,6 @@
 from random import randint
+
+from telegram import InputFile
 from config import config
 from aiogram import Bot, Dispatcher, types
 
@@ -29,10 +31,7 @@ class HelpModule():
         
         # Process help command        
         help_text = '📕*Список комманд:* \n'
-        help_text += '📌 /codeforces \\- панель управления CodeForces  \n'
-        help_text += '📌 /onlinegdb \\- панель управления OnlineGdb Classroom  \n'
-        help_text += '📌 /acmp \\- панель управления Acmp  \n'
-        help_text += '📌 /sheets \\- панель управления Google Sheets \\(Журнал\\)  \n'
+        help_text += '📌 /menu \\- меню бота\n'
         await message.answer(help_text, parse_mode='MarkdownV2')
 
 def setup(dp: Dispatcher, bot):

@@ -23,6 +23,7 @@ class Table():
     
     def __init__(self, worksheet, position):
         self.__worksheet = worksheet
+        print('NEW')
         self.__logins_list = []
         self.__children_dict = {}
         self.__tasks_list = []
@@ -57,6 +58,9 @@ class Table():
             return True
         return False
     
+    def get_logins_list(self):
+        return self.__logins_list
+    
     # Add task
     def add_task(self, id, name = None):
         column = add_char(self.column, 5 + len(self.__tasks_list))
@@ -69,7 +73,11 @@ class Table():
         self.__tasks_list.append(id)
 
     # Set grades
-    def set_grade(self, id, logins_of_solvers):
+    def set_grade(self, id, logins_of_solvers, name = ''):
+        if (not id in self.__tasks_dict.keys()):
+            self.add_task(id, name)
+        print(id)
+        print(logins_of_solvers)
         # Check differents between solvers
         before_solvers = self.__tasks_dict[id]
         new_solvers = list(set(logins_of_solvers)-set(before_solvers))
