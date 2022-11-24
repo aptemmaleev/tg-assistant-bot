@@ -13,12 +13,14 @@
 Assistant Bot использует ряд проектов с открытым исходным кодом для работы:
 - [aiogram] - Simple and fully asynchronous framework for Telegram Bot API
 - [gspread] - Google Sheets Python API
+- [BeautifulSoup4] - Pulling data out of HTML and XML file
+- [Random User-Agent] - Automatically replaces the User-Agent with a randomized one.
 - [pdoc] - API Documentation for Python Projects
 - [psycopg2] - PostgreSQL database adapter for the Python programming language
 
 ## Установка
 
-Склонируйте репозиторий и настройке файл конфигурации:
+Склонируйте репозиторий и настройте файл конфигурации:
 
 ```json
 {
@@ -55,6 +57,8 @@ MIT
    [OnlineGDB Classroom]: <https://www.onlinegdb.com/classroom>
    [ACMP]: <https://acmp.ru/>
    [Codeforces]: <https://codeforces.com/>
+   [BeautifulSoup4]: <https://github.com/wention/BeautifulSoup4>
+   [Random User-Agent]: <https://github.com/tarampampam/random-user-agent>
    [aiogram]: <https://github.com/aiogram/aiogram>
    [gspread]: <https://github.com/burnash/gspread>
    [pdoc]: <https://github.com/mitmproxy/pdoc>
