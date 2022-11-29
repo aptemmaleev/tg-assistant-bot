@@ -1,7 +1,7 @@
 # Assistant Bot
 
 ```
-🔱 Developer: MaleevAptem
+🔱 Developer: Aptem M
 🎮 Discord: Aptem#9434
 ✉️ Telegram: @aptemm
 ```
