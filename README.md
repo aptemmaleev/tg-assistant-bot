@@ -15,7 +15,7 @@
 - Парсинг решений с [ACMP]
 - Парсинг решений с [Codeforces] (в планах)
 
-## Техническая часть
+## Зависимости
 
 Assistant Bot использует ряд проектов с открытым исходным кодом для работы:
 - [aiogram] - Simple and fully asynchronous framework for Telegram Bot API
